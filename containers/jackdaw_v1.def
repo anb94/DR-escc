@@ -36,7 +36,7 @@ From: ubuntu:18.04
     apt-get update
     apt-get upgrade -y
     apt-get install -y r-base r-base-dev
-    R -e "install.packages('BiocManager'); library('BiocManager'); BiocManager::install(c('GWASTools', 'affxparser')")
+    R -e 'install.packages("BiocManager"); library("BiocManager"); BiocManager::install(c("GWASTools", "affxparser"))'
     R -e 'install.packages(c("tidyverse","qqman"), lib="/usr/local/lib/R/site-library")'
 
 %environment
