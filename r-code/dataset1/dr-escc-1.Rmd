@@ -1,0 +1,465 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+```{r}
+library(affy)
+library(limma)
+library(tibble)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(ggrepel)
+library(readr)
+library(limma)
+library(pheatmap)
+```
+
+```{r}
+#if (!"BiocManager" %in% rownames(installed.packages()))
+#     install.packages("BiocManager")
+#BiocManager::install(c("affy", "limma"), dependencies=TRUE, force = TRUE)
+```
+
+
+
+```{r}
+data=read.table(file = '/Users/anb/Documents/CMEB-Lab/DR-escc-data/datasets/GSE44021/GSE44021_common_probes_data.txt', sep = '\t', header = TRUE)
+```
+
+```{r}
+sampleinfo = read.table(file = '/Users/anb/Documents/CMEB-Lab/DR-escc-data/datasets/GSE44021/GSE44021_sampleinfo.tsv', sep = '\t', header = TRUE)
+```
+
+```{r}
+#data.class(numeric())
+```
+
+```{r}
+#data2 <- as.integer(data[2:,])
+```
+
+```{r}
+class(data)
+```
+
+```{r}
+df <- data %>%
+         column_to_rownames('Probe.Set.ID')
+```
+
+```{r}
+df
+```
+
+
+
+```{r}
+data2 <- data.matrix(df)
+```
+
+
+```{r}
+data2
+```
+
+```{r}
+#data2tf <- log2(data2)
+```
+
+```{r}
+#boxplot(data2,outline=FALSE)
+```
+
+```{r}
+#boxplot(data2tf,outline=FALSE)
+```
+
+
+```{r}
+summary(data2)
+```
+
+
+```{r}
+class(data2)
+```
+
+```{r}
+data2
+```
+
+
+```{r}
+sampleinfo
+```
+
+```{r}
+summary(data2)
+```
+
+
+
+
+
+######### FIX IF BREAKS!!
+```{r}
+dataset <- data2
+```
+
+
+
+
+
+```{r}
+boxplot(dataset,outline=FALSE)
+```
+
+
+
+
+```{r}
+sampleInfo <- sampleinfo[,-1]
+rownames(sampleInfo) <- sampleinfo[,1]
+```
+
+```{r}
+sampleInfo 
+```
+
+
+```{r}
+corMatrix <- cor(dataset,use="c")
+
+```
+
+```{r}
+pheatmap(corMatrix) 
+```
+
+```{r}
+rownames(sampleInfo)
+```
+
+
+```{r}
+colnames(corMatrix)
+```
+
+
+
+```{r}
+pca <- prcomp(t(dataset))
+```
+
+```{r}
+pca
+```
+
+
+
+```{r}
+cbind(sampleInfo, pca$x) %>% 
+ggplot(aes(x = PC1, y=PC2, col=group,label=paste("Patient", patient))) + geom_point() + geom_text_repel()
+```
+
+```{r}
+design <- model.matrix(~0+sampleInfo$group)
+design
+```
+```{r}
+## the column names are a bit ugly, so we will rename
+colnames(design) <- c("Normal","Tumour")
+```
+
+
+
+```{r}
+summary(dataset)
+```
+
+```{r}
+
+## calculate median expression level
+cutoff <- median(dataset)
+```
+
+```{r}
+
+## TRUE or FALSE for whether each gene is "expressed" in each sample
+is_expressed <- dataset > cutoff
+
+## Identify genes expressed in more than 2 samples
+
+keep <- rowSums(is_expressed) > 2
+
+## check how many genes are removed / retained.
+table(keep)
+
+## subset to just those expressed genes
+dataset2 <- dataset[keep,]
+```
+
+
+```{r}
+fit <- lmFit(dataset2, design)
+head(fit$coefficients)
+```
+
+
+```{r}
+contrasts <- makeContrasts(Tumour - Normal, levels=design)
+
+## can define multiple contrasts
+## e.g. makeContrasts(Group1 - Group2, Group2 - Group3,....levels=design)
+
+fit2 <- contrasts.fit(fit, contrasts)
+
+```
+
+```{r}
+fit2 <- eBayes(fit2)
+```
+
+```{r}
+topTable(fit2)
+```
+
+```{r}
+fit2
+```
+
+```{r}
+topTable(fit2, coef=1)
+```
+
+```{r}
+decideTests(fit2)
+```
+
+```{r}
+table(decideTests(fit2))
+```
+
+
+
+```{r}
+full_results <- topTable(fit2, number=Inf)
+```
+
+```{r}
+full_results1 <- tibble::rownames_to_column(full_results,"ID")
+```
+
+```{r}
+full_results1
+```
+
+
+
+```{r}
+
+write_csv(full_results1, path="/Users/anb/Documents/CMEB-Lab/DR-escc-data/output/GSE44021/paired-limma/gse_fullresults1.csv")
+```
+
+
+```{r}
+results=read.table(file = "/Users/anb/Documents/CMEB-Lab/DR-escc-data/output/GSE44021/paired-limma/R-results/GSE44021_DEG_analysis/gse_fullresults1_annot.csv", sep = ',', header = TRUE)
+```
+
+
+```{r}
+results
+```
+
+```{r}
+ggplot(full_results,aes(x = logFC, y=B)) + geom_point()
+```
+
+```{r}
+p_cutoff <- 0.05
+fc_cutoff <- 1
+
+full_results %>% 
+  mutate(Significant = adj.P.Val < p_cutoff, abs(logFC) > fc_cutoff ) %>% 
+  ggplot(aes(x = logFC, y = B, col=Significant)) + geom_point()
+```
+
+```{r}
+
+p_cutoff <- 0.05
+fc_cutoff <- 1
+topN <- 20
+
+results %>% 
+  mutate(Significant = adj.P.Val < p_cutoff, abs(logFC) > fc_cutoff ) %>% 
+  mutate(Rank = 1:n(), Label = ifelse(Rank < topN, Gene.Symbol,"")) %>% 
+  ggplot(aes(x = logFC, y = B, col=Significant,label=Label)) + geom_point() + geom_text_repel(col="black")
+
+```
+
+```{r}
+p_cutoff <- 0.05
+fc_cutoff <- 1
+
+filter(results, adj.P.Val < 0.05, abs(logFC) > 1)
+```
+
+```{r}
+filtdata1 <- filter(results, adj.P.Val < 0.05, abs(logFC) > 1)
+```
+
+```{r}
+filtdata1[order(filtdata1$adj.P.Val),]
+```
+
+
+```{r}
+filtdatafc05 <- filter(results, adj.P.Val < 0.05, abs(logFC) > 0.5)
+```
+
+```{r}
+filtdatafc05
+```
+
+```{r}
+library(dplyr)
+```
+
+
+```{r}
+filtdatafc05 %>% filter(Gene.Symbol == 'EGFR')
+```
+
+```{r}
+filtdatafc05 %>% filter(Gene.Symbol == 'EGFR')
+```
+
+
+
+
+
+```{r}
+filtdata1$adj.P.Val
+```
+
+
+
+```{r}
+filter(results, adj.P.Val < 0.05, abs(logFC) > 0.5) %>%
+  write_csv(path="/Users/anb/Documents/CMEB-Lab/DR-escc-data/output/GSE44021/paired-limma/R-results/GSE44021_DEG_analysis/gse_fullresults1_annot_filt-fc05-pval05.csv")
+```
+
+```{r}
+## Use to top 20 genes for illustration
+
+topN <- 20
+##
+ids_of_interest <- mutate(results, Rank = 1:n()) %>% 
+  filter(Rank < topN) %>% 
+  pull(ID)
+```
+
+```{r}
+ids_of_interest
+```
+
+```{r}
+gene_names <- mutate(results, Rank = 1:n()) %>% 
+  filter(Rank < topN) %>% 
+  pull(Gene.Symbol) 
+```
+
+```{r}
+## Get the rows corresponding to ids_of_interest and all columns
+gene_matrix <- dataset2[ids_of_interest,]
+```
+
+```{r}
+gene_matrix
+```
+
+```{r fig.width=20, fig.height=20}
+pheatmap(gene_matrix,
+     labels_row = gene_names)
+```
+
+```{r fig.width=10, fig.height=10}
+pheatmap(gene_matrix,
+     labels_row = gene_names,
+      scale="row",
+     
+      angle_col = 270,
+     fontsize_col = 6
+    )
+```
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("org.Hs.eg.db")
+```
+
+```{r}
+library(org.Hs.eg.db)
+```
+```{r}
+keytypes(org.Hs.eg.db)
+```
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+
+
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+#BiocManager::install("Mergeomics")
+```
+
+
+```{r}
+#job.kda <- list()
+```
+
+```{r}
+#job.kda
+```
+
+
+
+```{r}
+#job.kda$label<-"HDLC"
+```
+
+```{r}
+#job.kda$folder<-"./Results"
+```
+
+```{r}
+#job.kda$netfile <- system.file("extdata", "network.mouseliver.mouse.txt", + package="Mergeomics")
+```
+
+```{r}
+
+```
+
+
+
