@@ -1,0 +1,143 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#
+#BiocManager::install("gep2pep")
+```
+
+```{r}
+library(knitr)
+opts_chunk$set(collapse = TRUE)
+
+library(gep2pep)
+suppressMessages(library(GSEABase))
+```
+
+```{r}
+db <- importMSigDB.xml("/Users/anb/msigdb_v7.5.1.xml.txt")
+
+db <- as.CategorizedCollection(db)
+```
+
+```{r}
+rpBig <- openRepository("/Users/anb/Downloads/Cmap_MSigDB_v6.1_PEPs")
+```
+
+
+
+```{r}
+pws <- gene2pathways(rpBig, "EGFR")
+```
+
+
+```{r}
+#psea <- PathSEA(rpBig, pws, collections="all")
+psea <- PathSEA(rpBig, pws, collections=c("C5_BP", "C5_MF", "C5_CC"))
+
+```
+
+
+
+
+```{r}
+getResults(psea, "C5_BP")[1:10,]
+
+```
+
+```{r}
+egfr_c5bp <- getResults(psea, "C5_BP")
+```
+
+
+```{r}
+egfr_c5bp
+```
+```{r}
+egfr_c5mf <- getResults(psea, "C5_MF")
+```
+
+
+```{r}
+egfr_c5cc <- getResults(psea, "C5_CC")
+```
+
+
+```{r}
+exportSEA(rpBig, psea, outname = "~/Desktop/resultsgene2drug.xls")
+```
+
+
+
+```{r}
+library(tibble)
+egfr_c5mf <- rownames_to_column(egfr_c5mf) 
+egfr_c5bp <- rownames_to_column(egfr_c5bp)
+egfr_c5cc <- rownames_to_column(egfr_c5cc)
+```
+
+```{r}
+egfr_c5mf
+```
+
+
+```{r}
+library(dplyr)
+egfr_c5mf <- rename(egfr_c5mf, DRUG = rowname)
+egfr_c5bp <- rename(egfr_c5bp, DRUG = rowname)
+egfr_c5cc <- rename(egfr_c5cc, DRUG = rowname)
+```
+
+```{r}
+egfr_c5mf
+```
+
+
+```{r}
+library(readr)
+write_tsv(egfr_c5mf, file="/Users/anb/Desktop/egfr_c5mf.tsv")
+write_tsv(egfr_c5bp, file="/Users/anb/Desktop/egfr_c5bp.tsv")
+write_tsv(egfr_c5cc, file="/Users/anb/Desktop/egfr_c5cc.tsv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################# TESTING #######################
+
+```{r}
+pathway <- c("M27039", "M18837", "M40708")
+w <- sapply(db, setIdentifier) %in% pathway
+subdb <- db[w]
+
+```
+
+
+```{r}
+subdb
+```
+
+```{r}
+psea <- PathSEA(rpBig, subdb)
+```
+
+
+
+
+
