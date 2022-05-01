@@ -245,8 +245,8 @@ full_results %>%
 ```
 
 ```{r, }
-p_cutoff <- 0.01
-fc_cutoff <- 1.5
+p_cutoff <- 0.05
+fc_cutoff <- 1
 topN <- 20
 options(ggrepel.max.overlaps = Inf)
 
@@ -258,20 +258,20 @@ full_results %>%
 ```
 
 ```{r}
-filter(full_results, Gene.Symbol == "EGFR")
+filter(full_results, Gene.Symbol == "CXCL1")
 ```
 
 ```{r}
-p_cutoff <- 0.01
-fc_cutoff <- 1.5
+p_cutoff <- 0.05
+fc_cutoff <- 1
 
-filter(full_results, adj.P.Val < 0.01, abs(logFC) > 1.5)
+filter(full_results, adj.P.Val < 0.05, abs(logFC) > 1)
 ```
 
 
 ```{r}
-filter(full_results, adj.P.Val < 0.05, abs(logFC) > 1.5) %>%
-  write_tsv(file = "/Users/anb/Documents/CMEB-Lab/ESCC-Drug-Repositioning/DR-escc-data/output/GSE23400/filtered_de_results_1-5fc_05pval.tsv")
+filter(full_results, adj.P.Val < 0.05, abs(logFC) > 1) %>%
+  write_tsv(file = "/Users/anb/Documents/CMEB-Lab/ESCC-Drug-Repositioning/DR-escc-data/output/GSE23400/filtered_de_results_1fc_05pval.tsv")
 ```
 
 ```{r}
@@ -297,6 +297,22 @@ as.data.frame(genes_output$Gene.Symbol) %>%
 full_results %>%
   write_tsv(file = "/Users/anb/Documents/CMEB-Lab/ESCC-Drug-Repositioning/DR-escc-data/output/GSE23400/unfiltered_de_results.tsv")
 ```
+
+
+```{r}
+# reading in data from deseq2
+
+df = read.csv("/Users/anb/Documents/CMEB-Lab/ESCC-Drug-Repositioning/DR-escc-data/output/GSE23400/filtered_de_results.csv", header=TRUE)
+```
+
+```{r}
+sort(df)
+```
+
+```{r}
+
+```
+
 
 ```{r}
 topN <- 20
@@ -329,6 +345,20 @@ library(org.Hs.eg.db)
 
 
 ```{r}
+library(affy)
+library(limma)
+library(tibble)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(ggrepel)
+library(readr)
+library(limma)
+library(pheatmap)
+```
+
+
+```{r}
 library(pathview)
 library(clusterProfiler)
 library(enrichplot)
@@ -347,17 +377,11 @@ BiocManager::install(organism, character.only = TRUE)
 library(organism, character.only = TRUE)
 ```
 
-```{r}
-# reading in data from deseq2
-
-df = read.csv("/Users/anb/Documents/CMEB-Lab/ESCC-Drug-Repositioning/DR-escc-data/output/GSE23400/filtered_de_results.csv", header=TRUE)
-```
-
 
 ```{r}
 # reading in data from deseq2
 
-df = read.csv("/Users/anb/Documents/CMEB-Lab/ESCC-Drug-Repositioning/DR-escc-data/output/GSE23400/filtered_de_results_1-5fc_01pval.tsv", sep="\t", header=TRUE)
+df = read.csv("/Users/anb/Documents/CMEB-Lab/ESCC-Drug-Repositioning/DR-escc-data/output/GSE23400/DEG-analysis/filtered_de_results_1fc_05pval_dupsdropped.tsv", sep="\t", header=TRUE)
 ```
 
 
@@ -365,9 +389,10 @@ df = read.csv("/Users/anb/Documents/CMEB-Lab/ESCC-Drug-Repositioning/DR-escc-dat
 ```{r}
 df
 ```
+
 ```{r}
-upreg <- df[df$logFC >= 1.5, ]
-downreg <- df[df$logFC <= -1.5, ]
+upreg <- df[df$logFC >= 1, ]
+downreg <- df[df$logFC <= -1, ]
 ```
 
 
@@ -377,8 +402,8 @@ downreg_gene_list <- downreg$Gene.Symbol
 ```
 
 ```{r}
-write_tsv(as.data.frame(upreg_gene_list), file="/Users/anb/Desktop/upreg_gene_list_1-5fc_01pval.tsv", col_names = FALSE)
-write_tsv(as.data.frame(downreg_gene_list), file="/Users/anb/Desktop/downreg_gene_list_1-5fc_01pval.tsv", col_names = FALSE)
+write_tsv(as.data.frame(upreg_gene_list), file="/Users/anb/Desktop/upreg_gene_list_1fc_05pval.tsv", col_names = FALSE)
+write_tsv(as.data.frame(downreg_gene_list), file="/Users/anb/Desktop/downreg_gene_list_1fc_05pval.tsv", col_names = FALSE)
 ```
 
 
@@ -410,20 +435,8 @@ filtdf <- df %>% distinct(Gene.Symbol, .keep_all = TRUE)
 df <- filtdf
 ```
 
-
-
 ```{r}
-# we want the log2 fold change 
-original_gene_list <- df$logFC
-
-# name the vector
-names(original_gene_list) <- df$Gene.Symbol
-
-# omit any NA values 
-gene_list<-na.omit(original_gene_list)
-
-# sort the list in decreasing order (required for clusterProfiler)
-gene_list = sort(gene_list, decreasing = TRUE)
+df
 ```
 
 
@@ -439,10 +452,14 @@ gse <- gseGO(geneList=gene_list,
              pAdjustMethod = "none")
 ```
 
+
+
+
 ```{r, dotplot, echo=FALSE,fig.height=4, dev='jpeg'}
 require(DOSE)
 dotplot(gse, showCategory=10, split=".sign") + facet_grid(.~.sign)
 ```
+
 
 
 ```{r}
@@ -570,6 +587,8 @@ ridgeplot(gse) + labs(x = "enrichment distribution")
 ```{r}
 gseaplot(gse, by = "all", title = gse$Description[1], geneSetID = 1)
 ```
+
+
 ```{r}
 gseaplot(gse, by = "all", title = gse$Description[2], geneSetID = 2)
 ```
